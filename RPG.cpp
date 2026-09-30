@@ -8,9 +8,10 @@
 #include <functional>
 #include <string>
 #include <cmath>
+#include <algorithm>
 #include <vector>
 #include <cstdlib>
-#include <bits/stdc++.h>
+//#include <bits/stdc++.h>
 
 //Namespace
 
@@ -116,26 +117,20 @@ struct Enemy_Rewards
     int xp_reward;
 };
 
-//Classes
+//Foward Declaration
 
 class Entity;
 class Player;
 class Monster;
 class Weapon;
 class Material;
-class Effect;
-
-//Effect Base
-
 class Effect {
 public:
 
     string NAME;
     int DURATION;
 
-    virtual void Apply(Entity& target)
-    {
-    }
+    virtual void Apply(Entity& target){}
 
     virtual ~Effect() = default;
 };
@@ -146,7 +141,7 @@ class Entity {
 public:
 
     //HP
-    Basic_Attribute HP;
+    Complex_Attribute HP;
     Basic_Attribute REGEN;
 
     //DEFENSE
@@ -239,7 +234,9 @@ public:
     {
         //HP
         HP.base = 20;
-        HP.current = HP.base;
+        HP.bonus = 0;
+        HP.max = HP.base + HP.bonus;
+        HP.current = HP.max;
         REGEN.base = 0;
         REGEN.current = REGEN.base;
 
@@ -311,7 +308,9 @@ public:
     {
         //HP
         HP.base = 30;
-        HP.current = HP.base;
+        HP.bonus = 0;
+        HP.max = HP.base + HP.bonus;
+        HP.current = HP.max;
         REGEN.base = 2;
         REGEN.current = REGEN.base;
 
@@ -383,13 +382,116 @@ Spawn_Table Desert =
     }
 };
 
+//Effects Data Base
+
+class Poison : public Effect
+{
+public:
+
+    int DAMAGE;
+    int INCREMENT;
+    int MAX_DAMAGE;
+    int DEBUFF;
+
+    void poison(int duration, int damage, int increment, int debuff){
+        NAME = "Poison";
+
+        DURATION = duration;
+        DAMAGE = damage;
+        INCREMENT = increment;
+        DEBUFF = debuff;
+    }
+
+    void Apply(Entity& target) override
+    {
+        target.REGEN.current -= DEBUFF;
+        target.HP.current -= DAMAGE;
+        cout << target.NAME << "levou " << DAMAGE << "De dano por envenenamento...\t";
+        if (DAMAGE < MAX_DAMAGE)
+        {
+            DAMAGE = clamp(DAMAGE + INCREMENT,1,MAX_DAMAGE);
+            cout << "O veneno piorou!";
+        }
+        cout << endl;
+
+        DURATION--;
+    }
+
+    ~Poison() override = default;
+};
+
+class Burn : public Effect
+{
+public:
+
+    int DAMAGE;
+    int INCREMENT;
+    int DEBUFF;
+
+    void burn(int duration, int damage, int increment){
+        NAME = "Burn";
+
+        DURATION = duration;
+        DAMAGE = damage;
+    }
+
+    void Apply(Entity& target) override
+    {
+        int damage = clamp(DAMAGE - target.DEFENSE.current,1,DAMAGE);
+        target.HP.current -= damage;
+        cout << target.NAME << "levou " << damage << "De dano por queimadura...\t";
+        if (target.DEFENSE.current < 0)
+        {
+            target.DEFENSE.current = clamp(target.DEFENSE.current - damage,0,target.DEFENSE.current);
+            cout << "Suas defesas queimaram!";
+        }
+        cout << endl;
+
+        DURATION--;
+    }
+
+    ~Burn() override = default;
+};
+
+class Freeze : public Effect
+{
+public:
+
+    int DAMAGE;
+    int INCREMENT;
+    int DEBUFF;
+
+    void freeze(int duration, int debuff, int increment){
+        NAME = "Burn";
+
+        DURATION = duration;
+    }
+
+    void Apply(Entity& target) override
+    {
+        int damage = clamp(DAMAGE - target.DEFENSE.current,1,DAMAGE);
+        target.HP.current -= damage;
+        cout << target.NAME << "levou " << damage << "De dano por queimadura...\t";
+        if (target.DEFENSE.current < 0)
+        {
+            target.DEFENSE.current = clamp(target.DEFENSE.current - damage,0,target.DEFENSE.current);
+            cout << "Suas defesas queimaram!";
+        }
+        cout << endl;
+
+        DURATION--;
+    }
+
+    ~Freeze() override = default;
+};
+
 //Material Data Base
-
-
 
 // Weapon Data Base
 
+class Weapon {
 
+};
 
 // Player Data
 
@@ -409,7 +511,9 @@ public:
     {
         //HP
         HP.base = 20;
-        HP.current = HP.base;
+        HP.bonus = 0;
+        HP.max = HP.base + HP.bonus;
+        HP.current = HP.max;
         REGEN.base = 0;
         REGEN.current = REGEN.base;
 
@@ -455,11 +559,11 @@ public:
     ~Player() override = default;
 };
 
-void entity_view(const Monster& target)
+void entity_view(Monster& target)
 {
-    cout << "\n-=-=-=- "<<target.NAME<<" -=-=-=-\n";
+    cout << "-=-=-=- "<<target.NAME<<" -=-=-=-\n";
     cout << "LEVEL: " << target.LEVEL << endl << endl;
-    cout << "HP: " << target.HP.current << "/" << target.HP.base << endl;
+    cout << "HP: " << target.HP.current << "/" << target.HP.max << endl;
     cout << "ATTACK: " << target.ATTACK.current << "\t" << "MAGIC: " << target.MAGIC.current << endl;
     cout << "DEFENSE: " << target.DEFENSE.current << "\t" << "SPEED: " << target.SPEED.current;
     for (int i = 0; i < target.effects.size(); i++) {
@@ -467,16 +571,16 @@ void entity_view(const Monster& target)
     }
 }
 
-void entity_check(const Monster& target)
+void entity_check(Monster& target)
 {
-    cout << "\n-=-=-=- "<<target.NAME<<" -=-=-=-\n";
+    cout << "-=-=-=- "<<target.NAME<<" -=-=-=-\n";
     cout << "LEVEL: " << target.LEVEL << endl;
-    cout << "HP: " << target.HP.current << "/" << target.HP.base << endl;
+    cout << "HP: " << target.HP.current << "/" << target.HP.max << endl;
     cout << "ATTACK: " << target.ATTACK.current << "\t" << "MAGIC: " << target.MAGIC.current << endl;
     cout << "DEFENSE: " << target.DEFENSE.current << "\t" << "SPEED: " << target.SPEED.current;
 }
 
-void player_check(const Player& player)
+void player_check(Player& player)
 {
     cout << "-=-=-=- "<<player.NAME<<" -=-=-=-\n";
     cout << "LEVEL: " << player.LEVEL.level << endl;
@@ -487,21 +591,28 @@ void player_check(const Player& player)
 
 // Game States
 
-void combat(const Entity& player)
+void combat(Player& player, Monster& enemy)
 {
     enum Turn{PLAYER_TURN,ENEMY_TURN};
     Turn turn;
-    unique_ptr<Monster> const enemy = Spawn_Enemy(Forest);
 
-    if (player.SPEED.current >= enemy->SPEED.current) {
+    if (player.SPEED.current >= enemy.SPEED.current) {
         turn = PLAYER_TURN;
-    } else {turn = PLAYER_TURN;}
+    } else
+    {
+     	turn = ENEMY_TURN;
+    }
 
-    while (enemy->HP.current > 0) {
+    while (enemy.HP.current > 0) {
         do {
 
+        	line_breaker(2,40,'=');
 
+            player_check(player);
+            cout << endl;
+        	entity_view(enemy);
 
+        	sleep(2);
         } while (turn == PLAYER_TURN);
 
 
@@ -514,19 +625,20 @@ int main(){
 
     srand(time(nullptr));
 
-    line_breaker(3,40,'=');
+    line_breaker(2,40,'=');
 
     cout << "Generating seed...";
 
     usleep(1000000);
-    line_breaker(3,40,'=');
 
     enum GameState{EXPLORATION,COMBAT,DIALOG,SHOP,INVENTORY,LEVEL_UP,GAME_OVER};
 
-    GameState state = EXPLORATION;
+    GameState state = COMBAT;
 
-    Player Plyr;
-    Goblin Goblin;
+    Player player;
+    unique_ptr<Monster> enemy = Spawn_Enemy(Forest);
+
+    combat(player, *enemy);
 
     return 0;
 }
