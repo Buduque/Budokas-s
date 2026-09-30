@@ -472,11 +472,6 @@ public:
         int damage = clamp(DAMAGE - target.DEFENSE.current,1,DAMAGE);
         target.HP.current -= damage;
         cout << target.NAME << "levou " << damage << "De dano por queimadura...\t";
-        if (target.DEFENSE.current < 0)
-        {
-            target.DEFENSE.current = clamp(target.DEFENSE.current - damage,0,target.DEFENSE.current);
-            cout << "Suas defesas queimaram!";
-        }
         cout << endl;
 
         DURATION--;
