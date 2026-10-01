@@ -50,7 +50,7 @@ void clear_screen()
 void line_breaker(const int space, const int length, const char symbol)
 {
     cout << string(space, '\n');
-    cout << "\t" << string(length,symbol);
+    cout << string(length,symbol);
     cout << string(space, '\n');
 }
 
@@ -67,8 +67,8 @@ void pattern_breaker(const int space, const int length, const char symbol1, cons
 {
     cout << string(space, '\n');
     for (int i = 0; i < length/2; i++){
-        cout << "\t" << symbol1;
-        cout << "\t" << symbol2;
+        cout << symbol1;
+        cout << symbol2;
     }
     cout << string(space, '\n');
 }
@@ -77,13 +77,13 @@ void pattern_write(const int space, const int length, std::string text, const ch
 {
     cout << string(space, '\n');
     for (int i = 0; i < length/4; i++){
-        cout << string(15,symbol1);
-        cout << string(15,symbol2);
+        cout << symbol1;
+        cout << symbol2;
     }
     cout << text;
     for (int i = 0; i < length/4; i++){
-        cout << string(15,symbol1);
-        cout << string(15,symbol2);
+        cout << symbol1;
+        cout << symbol2;
     }
     cout << string(space, '\n');
 }
@@ -171,6 +171,8 @@ public:
         for (int i = effects.size() -1; i>=0; i--){
 
             effects[i]->Apply(*this);
+            sleep(1);
+
 
             if(effects[i]->DURATION <= 0){
                 delete effects[i];
@@ -192,23 +194,28 @@ public:
     int LEVEL;
     Enemy_Rewards REWARDS;
 
-    int ACTION;
+    //Action 0 represents the first turn of the battle,
+    //just in case the enemy uses the last action as a parameter to think about a new one
+    int ACTION = 0;
 
-    virtual void Combat_AI(){}
+    virtual int Combat_AI(Player& target){return 2;}
     virtual void Main_Atk() {}
     virtual void Secondary_Atk() {}
     virtual void Block() {}
     virtual void Rest() {}
-    virtual void Especial1() {}
-    virtual void Especial2() {}
+    virtual void Special1() {}
+    virtual void Special2() {}
 };
 
 class Goblin : public Monster
 {
 public:
 
-    void Combat_AI() override {
+    int Combat_AI(Player& target) override {
 
+        int action = 2;
+
+        return action;
     }
     void Main_Atk() override {
 
@@ -222,10 +229,10 @@ public:
     void Rest() override {
 
     }
-    void Especial1() override {
+    void Special1() override {
 
     }
-    void Especial2() override {
+    void Special2() override {
 
     }
 
@@ -271,7 +278,6 @@ public:
         LEVEL = 1;
         REWARDS.gold = 14;
         REWARDS.xp_reward = 21;
-        ACTION = 1;
     }
 
     ~Goblin() override = default;
@@ -281,8 +287,11 @@ class Slime : public Monster
 {
 public:
 
-    void Combat_AI() override {
+    int Combat_AI(Player& target) override {
 
+        int action = 2;
+
+        return action;
     }
     void Main_Atk() override {
 
@@ -296,10 +305,10 @@ public:
     void Rest() override {
 
     }
-    void Especial1() override {
+    void Special1() override {
 
     }
-    void Especial2() override {
+    void Special2() override {
 
     }
 
@@ -345,7 +354,6 @@ public:
         LEVEL = 1;
         REWARDS.gold = 8;
         REWARDS.xp_reward = 26;
-        ACTION = 1;
     }
 
     ~Slime() override = default;
@@ -393,11 +401,12 @@ public:
     int MAX_DAMAGE;
     int DEBUFF;
 
-    void poison(int duration, int damage, int increment, int debuff){
+    Poison(int duration, int damage, int increment, int debuff){
         NAME = "Poison";
 
         DURATION = duration;
         DAMAGE = damage;
+        MAX_DAMAGE = DAMAGE*5;
         INCREMENT = increment;
         DEBUFF = debuff;
     }
@@ -406,7 +415,7 @@ public:
     {
         target.REGEN.current -= DEBUFF;
         target.HP.current -= DAMAGE;
-        cout << target.NAME << "levou " << DAMAGE << "De dano por envenenamento...\t";
+        cout << target.NAME << " levou " << DAMAGE << " De dano por envenenamento...\t";
         if (DAMAGE < MAX_DAMAGE)
         {
             DAMAGE = clamp(DAMAGE + INCREMENT,1,MAX_DAMAGE);
@@ -425,10 +434,8 @@ class Burn : public Effect
 public:
 
     int DAMAGE;
-    int INCREMENT;
-    int DEBUFF;
 
-    void burn(int duration, int damage, int increment){
+    Burn(int duration, int damage){
         NAME = "Burn";
 
         DURATION = duration;
@@ -439,10 +446,11 @@ public:
     {
         int damage = clamp(DAMAGE - target.DEFENSE.current,1,DAMAGE);
         target.HP.current -= damage;
-        cout << target.NAME << "levou " << damage << "De dano por queimadura...\t";
-        if (target.DEFENSE.current < 0)
+        cout << target.NAME << " levou " << damage << " De dano por queimadura...\t";
+        if (target.DEFENSE.current > 0)
         {
-            target.DEFENSE.current = clamp(target.DEFENSE.current - damage,0,target.DEFENSE.current);
+            target.DEFENSE.current = max(target.DEFENSE.current - damage,0);
+
             cout << "Suas defesas queimaram!";
         }
         cout << endl;
@@ -458,20 +466,19 @@ class Freeze : public Effect
 public:
 
     int DAMAGE;
-    int INCREMENT;
     int DEBUFF;
 
-    void freeze(int duration, int debuff, int increment){
-        NAME = "Burn";
+    Freeze(int duration, int debuff){
+        NAME = "Freeze";
 
         DURATION = duration;
+        DEBUFF = debuff;
     }
 
     void Apply(Entity& target) override
     {
-        int damage = clamp(DAMAGE - target.DEFENSE.current,1,DAMAGE);
-        target.HP.current -= damage;
-        cout << target.NAME << "levou " << damage << "De dano por queimadura...\t";
+        target.SPEED.current -= DEBUFF;
+        cout << target.NAME << " está congelando...\t";
         cout << endl;
 
         DURATION--;
@@ -499,7 +506,8 @@ public:
     XP_Sys LEVEL{};
 	Complex_Attribute ENERGY{};
 
-    int ACTION;
+    enum ACT{MAIN_ATTACK=1,SECONDARY_ATTACK=2,PROTECT=3,REST=4,ANALISE=5,USE_ITEM=6,RUN=7,SKIP=8,INTERRUPT=9,OTHER=10};
+    ACT ACTION = SKIP;
 
     //Setting Up
     Player()
@@ -543,7 +551,6 @@ public:
         LEVEL.level = 1;
         LEVEL.xp = 0;
         LEVEL.nl_xp = 30;
-        ACTION = 0;
         ENERGY.base = 40;
         ENERGY.bonus = 0;
         ENERGY.max = ENERGY.base + ENERGY.bonus;
@@ -556,13 +563,13 @@ public:
 
 void entity_view(Monster& target)
 {
-    cout << "-=-=-=- "<<target.NAME<<" -=-=-=-\n";
-    cout << "LEVEL: " << target.LEVEL << endl << endl;
+    cout << "----- " << target.NAME << " LV " << target.LEVEL << " -----\n" << endl << endl;
     cout << "HP: " << target.HP.current << "/" << target.HP.max << endl;
-    cout << "ATTACK: " << target.ATTACK.current << "\t" << "MAGIC: " << target.MAGIC.current << endl;
-    cout << "DEFENSE: " << target.DEFENSE.current << "\t" << "SPEED: " << target.SPEED.current;
+
+    line_breaker(1,20,'-');
+
     for (int i = 0; i < target.effects.size(); i++) {
-        cout << target.effects[i]->NAME << "\t" << target.effects[i]->DURATION << endl;
+        cout << target.effects[i]->NAME << "  -  " << target.effects[i]->DURATION << " Turnos" << endl;
     }
 }
 
@@ -573,15 +580,26 @@ void entity_check(Monster& target)
     cout << "HP: " << target.HP.current << "/" << target.HP.max << endl;
     cout << "ATTACK: " << target.ATTACK.current << "\t" << "MAGIC: " << target.MAGIC.current << endl;
     cout << "DEFENSE: " << target.DEFENSE.current << "\t" << "SPEED: " << target.SPEED.current;
+
+    for (int i = 0; i < target.effects.size(); i++) {
+        cout << target.effects[i]->NAME << "\t" << target.effects[i]->DURATION << endl;
+    }
 }
 
 void player_check(Player& player)
 {
-    cout << "-=-=-=- "<<player.NAME<<" -=-=-=-\n";
-    cout << "LEVEL: " << player.LEVEL.level << endl;
-    cout << "HP: " << player.HP.current << "/" << player.HP.base << endl;
+    cout << "----- " << player.NAME << " LV " << player.LEVEL.level << " -----\n" << endl << endl;
+    cout << "HP: " << player.HP.current << "/" << player.HP.max << "\t";
+
+    cout << "ENERGY: " << player.ENERGY.current << "/" << player.ENERGY.max << endl;
     cout << "ATTACK: " << player.ATTACK.current << "\t" << "MAGIC: " << player.MAGIC.current << endl;
     cout << "DEFENSE: " << player.DEFENSE.current << "\t" << "SPEED: " << player.SPEED.current << endl;
+
+    line_breaker(1,20,'-');
+
+    for (int i = 0; i < player.effects.size(); i++) {
+        cout << player.effects[i]->NAME << "  -  " << player.effects[i]->DURATION << " Turnos" << endl;
+    }
 }
 
 // Game States
@@ -598,19 +616,118 @@ void combat(Player& player, Monster& enemy)
      	turn = ENEMY_TURN;
     }
 
+    int choice;
+
     while (enemy.HP.current > 0) {
         do {
 
-        	line_breaker(2,40,'=');
+            // Player's turn, this code will keep repeating until the player ran out of actions/moves to do.
 
             player_check(player);
             cout << endl;
         	entity_view(enemy);
+            cout << endl;
 
-        	sleep(2);
+            cout << "O que você irá fazer?" << endl;
+            cout << "1 - Usar arma principal..." << endl;
+            cout << "2 - Usar arma secundária..." << endl;
+            cout << "3 - Defender..." << endl;
+            cout << "4 - Descançar..." << endl;
+            cout << "5 - Analisar..." << endl;
+            cout << "6 - Usar item..." << endl;
+            cout << "7 - Correr..." << endl;
+            cout << endl;
+
+            cin >> choice;
+            if (choice < 1 || choice > 7)
+            {
+                choice = 0;
+            }
+
+            player.ACTION = static_cast<Player::ACT>(choice);
+            enemy.ACTION = enemy.Combat_AI(player);
+
+            //"Action validation", if the enemy interrupt you, your action won't move further than this!
+            //The enemy will reset your action to "interrupt" (9), IF he does cancel your action
+
+            switch (player.ACTION) {
+                case Player::MAIN_ATTACK:
+                    cout << enemy.NAME << " Atacou" << endl;
+                    turn = ENEMY_TURN;
+                    break;
+
+                case Player::SECONDARY_ATTACK:
+                    enemy.effects.push_back(new Poison(3,3,1,1));
+                    cout << player.NAME << " Aplicou teste de veneno" << endl;
+                    turn = ENEMY_TURN;
+                    break;
+
+                case Player::PROTECT:
+                    cout << player.NAME << " Defendeu" << endl;
+                    turn = ENEMY_TURN;
+                    break;
+
+                case Player::REST:
+                    cout << player.NAME << " Descançou" << endl;
+                    turn = ENEMY_TURN;
+                    break;
+
+                case Player::ANALISE:
+                    cout << player.NAME << " Analisou" << endl;
+                    break;
+
+                case Player::USE_ITEM:
+                    cout << player.NAME << " Usou item" << endl;
+                    turn = ENEMY_TURN;
+                    break;
+
+                case Player::RUN:
+                    cout << player.NAME << " Tentou correr" << endl;
+                    turn = ENEMY_TURN;
+                    break;
+                case Player::INTERRUPT:
+                    cout << player.NAME << "Algo te interrompeu..." << endl;
+                    turn = ENEMY_TURN;
+                    break;
+                default:
+                    cout << "Erro, digite um número referente a uma ação válido..." << endl << endl;
+            }
+            sleep(3);
         } while (turn == PLAYER_TURN);
 
+        switch (enemy.ACTION) {
+            case 1:
+                cout << enemy.NAME << " acertou um golpe!" << endl;
+                break;
+            case 2:
+                player.effects.push_back(new Burn(2,8));
+                cout << enemy.NAME << " te colocou em chamas!" << endl;
+                break;
+            case 3:
+                cout << enemy.NAME << " se protegeu" << endl;
+                break;
+            case 4:
+                cout << enemy.NAME << " descansou" << endl;
+                break;
+            case 5:
+                cout << enemy.NAME << " fez algo interessante" << endl;
+                break;
+            case 6:
+                cout << enemy.NAME << " fez algo nem tão interessante" << endl;
+                break;
+            default:
+                cout << enemy.NAME << " não moveu um músculo..." << endl;
+        }
 
+        sleep(2);
+
+        player.Apply_Effects();
+        enemy.Apply_Effects();
+
+        line_breaker(2,60,'=');
+
+        sleep(5);
+        turn = PLAYER_TURN;
     }
 }
 
@@ -620,19 +737,19 @@ int main(){
 
     srand(time(nullptr));
 
-    line_breaker(2,40,'=');
+    line_breaker(2,60,'=');
 
     cout << "Generating seed...";
+
+    line_breaker(2,60,'=');
 
     usleep(1000000);
 
     enum GameState{EXPLORATION,COMBAT,DIALOG,SHOP,INVENTORY,LEVEL_UP,GAME_OVER};
-
     GameState state = COMBAT;
 
     Player player;
     unique_ptr<Monster> enemy = Spawn_Enemy(Forest);
-
     combat(player, *enemy);
 
     return 0;
