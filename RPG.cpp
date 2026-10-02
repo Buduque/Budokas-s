@@ -50,7 +50,7 @@ void clear_screen()
 void line_breaker(const int space, const int length, const char symbol)
 {
     cout << string(space, '\n');
-    cout << string(length,symbol);
+    cout << string(length,symbol) << endl;
     cout << string(space, '\n');
 }
 
@@ -59,7 +59,7 @@ void line_write(const int space, const int length, std::string text, const char 
     cout << string(space, '\n');
     cout << string(length/2,symbol);
     cout << text;
-    cout << string(length/2,symbol);
+    cout << string(length/2,symbol) << endl;
     cout << string(space, '\n');
 }
 
@@ -70,7 +70,7 @@ void pattern_breaker(const int space, const int length, const char symbol1, cons
         cout << symbol1;
         cout << symbol2;
     }
-    cout << string(space, '\n');
+    cout << endl << string(space, '\n');
 }
 
 void pattern_write(const int space, const int length, std::string text, const char symbol1, const char symbol2)
@@ -85,7 +85,7 @@ void pattern_write(const int space, const int length, std::string text, const ch
         cout << symbol1;
         cout << symbol2;
     }
-    cout << string(space, '\n');
+    cout << endl << string(space, '\n');
 }
 
 //Structs
@@ -185,7 +185,77 @@ public:
     virtual ~Entity() = default;
 };
 
-// Monster Data Base
+//Material Data Base
+
+
+
+// Player Data
+
+class Player : public Entity
+{
+public:
+
+    //OTHER
+    XP_Sys LEVEL{};
+    Complex_Attribute ENERGY{};
+
+    enum ACT{MAIN_ATTACK=1,SECONDARY_ATTACK=2,PROTECT=3,REST=4,ANALISE=5,USE_ITEM=6,RUN=7,SKIP=8,INTERRUPT=9,OTHER=10};
+    ACT ACTION = SKIP;
+
+    //Setting Up
+    Player()
+    {
+        //HP
+        HP.base = 20;
+        HP.bonus = 0;
+        HP.max = HP.base + HP.bonus;
+        HP.current = HP.max;
+        REGEN.base = 0;
+        REGEN.current = REGEN.base;
+
+        //DEFENSE
+        DEFENSE.base = 5;
+        DEFENSE.current = DEFENSE.base;
+        DMG_REDUCTION.base = 0;
+        DMG_REDUCTION.current = DMG_REDUCTION.base;
+        PHS_DEF.base = 0;
+        PHS_DEF.current = PHS_DEF.base;
+        MGC_DEF.base = 0;
+        MGC_DEF.current = MGC_DEF.base;
+
+        //ATTACK
+        ATTACK.base = 5;
+        ATTACK.current = ATTACK.base;
+        MAGIC.base = 5;
+        MAGIC.current = MAGIC.base;
+        PENETRATION.base = 0;
+        PENETRATION.current = PENETRATION.base;
+
+        //SPEED
+        SPEED.base = 10;
+        SPEED.current = SPEED.base;
+        ACCURACY.base = 10;
+        ACCURACY.current = ACCURACY.base;
+        EVASIVENESS.base = 10;
+        EVASIVENESS.current = EVASIVENESS.base;
+
+        //OTHER
+        NAME = "Paulinho Gameplay";
+        LEVEL.level = 1;
+        LEVEL.xp = 0;
+        LEVEL.nl_xp = 30;
+        ENERGY.base = 40;
+        ENERGY.bonus = 0;
+        ENERGY.max = ENERGY.base + ENERGY.bonus;
+        ENERGY.current = ENERGY.max;
+
+    }
+
+    ~Player() override = default;
+};
+
+
+//Monster Data Base
 
 class Monster : public Entity
 {
@@ -199,13 +269,177 @@ public:
     int ACTION = 0;
 
     virtual int Combat_AI(Player& target){return 2;}
-    virtual void Main_Atk() {}
-    virtual void Secondary_Atk() {}
-    virtual void Block() {}
-    virtual void Rest() {}
-    virtual void Special1() {}
-    virtual void Special2() {}
+    virtual void Main_Atk(Player& target) {}
+    virtual void Secondary_Atk(Player& target) {}
+    virtual void Block(Player& target) {}
+    virtual void Rest(Player& target) {}
+    virtual void Special1(Player& target) {}
+    virtual void Special2(Player& target) {}
 };
+
+//Effects Data Base
+
+class Poison : public Effect
+{
+public:
+
+    int DAMAGE;
+    int INCREMENT;
+    int MAX_DAMAGE;
+    int DEBUFF;
+
+    Poison(int duration, int damage, int increment, int debuff){
+        NAME = "Poison";
+
+        DURATION = duration;
+        DAMAGE = damage;
+        MAX_DAMAGE = DAMAGE*5;
+        INCREMENT = increment;
+        DEBUFF = debuff;
+    }
+
+    void Apply(Entity& target) override
+    {
+        target.REGEN.current -= DEBUFF;
+        target.HP.current -= DAMAGE;
+        cout << target.NAME << " levou " << DAMAGE << " De dano por envenenamento... ";
+        if (DAMAGE < MAX_DAMAGE)
+        {
+            DAMAGE = clamp(DAMAGE + INCREMENT,1,MAX_DAMAGE);
+            cout << "O veneno piorou!";
+        }
+        cout << endl;
+
+        DURATION--;
+    }
+
+    ~Poison() override = default;
+};
+
+class Burn : public Effect
+{
+public:
+
+    int DAMAGE;
+
+    Burn(int duration, int damage){
+        NAME = "Burn";
+
+        DURATION = duration;
+        DAMAGE = damage;
+    }
+
+    void Apply(Entity& target) override
+    {
+        int damage = clamp(DAMAGE - target.DEFENSE.current,1,DAMAGE);
+        target.HP.current -= damage;
+        cout << target.NAME << " levou " << damage << " De dano por queimadura... ";
+        if (target.DEFENSE.current > 0)
+        {
+            target.DEFENSE.current = max(target.DEFENSE.current - damage,0);
+
+            cout << "Suas defesas queimaram!";
+        }
+        cout << endl;
+
+        DURATION--;
+    }
+
+    ~Burn() override = default;
+};
+
+class Freeze : public Effect
+{
+public:
+
+    int DEBUFF;
+
+    Freeze(int duration, int debuff){
+        NAME = "Freeze";
+
+        DURATION = duration;
+        DEBUFF = debuff;
+    }
+
+    void Apply(Entity& target) override
+    {
+        target.SPEED.current -= DEBUFF;
+        cout << target.NAME << " está congelando... ";
+        cout << endl;
+
+        DURATION--;
+    }
+
+    ~Freeze() override = default;
+};
+
+class Acid : public Effect
+{
+public:
+
+    int DAMAGE;
+    int DEBUFF;
+
+    Acid(int duration, int damage, int debuff){
+        NAME = "Poison";
+
+        DURATION = duration;
+        DAMAGE = damage;
+        DEBUFF = debuff;
+    }
+
+    void Apply(Entity& target) override
+    {
+        target.HP.current -= DAMAGE;
+        cout << target.NAME << " levou " << DAMAGE << " de dano por ácido... ";
+        if (target.HP.max > 1) {
+            target.HP.max = max(target.HP.max-DEBUFF,1);
+            cout << "Sua pele derrete!";
+        }
+
+        cout << endl;
+
+        DURATION--;
+    }
+
+    ~Acid() override = default;
+};
+
+class Muddy : public Effect
+{
+public:
+
+    int DEBUFF1;
+    int DEBUFF2;
+
+    Muddy(int duration, int debuff1, int debuff2){
+        NAME = "Muddy";
+
+        DURATION = duration;
+        DEBUFF1 = debuff1;
+        DEBUFF2 = debuff2;
+    }
+
+    void Apply(Entity& target) override
+    {
+        cout << target.NAME << " está coberto de lama... ";
+        cout << endl;
+        if (target.DEFENSE.current > 0){
+        	target.DEFENSE.current = max(target.DEFENSE.current - DEBUFF1,0);
+        	cout << "A lama enfraquece suas defesas! ";
+        }
+        if (target.SPEED.current > 0){
+        	target.SPEED.current = max(target.SPEED.current - DEBUFF2,0);
+        	cout << "A lama dificulta sua movimentação! ";
+        }
+
+        DURATION--;
+    }
+
+    ~Muddy() override = default;
+};
+
+//Monsters Data Base
 
 class Goblin : public Monster
 {
@@ -217,22 +451,22 @@ public:
 
         return action;
     }
-    void Main_Atk() override {
+    void Main_Atk(Player& target) override {
 
     }
-    void Secondary_Atk() override {
+    void Secondary_Atk(Player& target) override {
 
     }
-    void Block() override {
+    void Block(Player& target) override {
 
     }
-    void Rest() override {
+    void Rest(Player& target) override {
 
     }
-    void Special1() override {
+    void Special1(Player& target) override {
 
     }
-    void Special2() override {
+    void Special2(Player& target) override {
 
     }
 
@@ -293,22 +527,22 @@ public:
 
         return action;
     }
-    void Main_Atk() override {
+    void Main_Atk(Player& target) override {
 
     }
-    void Secondary_Atk() override {
+    void Secondary_Atk(Player& target) override {
 
     }
-    void Block() override {
+    void Block(Player& target) override {
 
     }
-    void Rest() override {
+    void Rest(Player& target) override {
 
     }
-    void Special1() override {
+    void Special1(Player& target) override {
 
     }
-    void Special2() override {
+    void Special2(Player& target) override {
 
     }
 
@@ -316,17 +550,100 @@ public:
     Slime()
     {
         //HP
-        HP.base = 30;
+        HP.base = 30; HP.bonus = 0; HP.max = HP.base + HP.bonus; HP.current = HP.max;
+        REGEN.base = 2; REGEN.current = REGEN.base;
+
+        //DEFENSE
+        DEFENSE.base = 6; DEFENSE.current = DEFENSE.base;
+        DMG_REDUCTION.base = 2; DMG_REDUCTION.current = DMG_REDUCTION.base;
+        PHS_DEF.base = 0; PHS_DEF.current = PHS_DEF.base;
+        MGC_DEF.base = 0; MGC_DEF.current = MGC_DEF.base;
+
+        //ATTACK
+        ATTACK.base = 4; ATTACK.current = ATTACK.base;
+        MAGIC.base = 2; MAGIC.current = MAGIC.base;
+        PENETRATION.base = 0; PENETRATION.current = PENETRATION.base;
+
+        //SPEED
+        SPEED.base = 5; SPEED.current = SPEED.base;
+        ACCURACY.base = 8; ACCURACY.current = ACCURACY.base;
+        EVASIVENESS.base = 5; EVASIVENESS.current = EVASIVENESS.base;
+
+        //OTHER
+        NAME = "Slime";
+        LEVEL = 1;
+        REWARDS.gold = 8; REWARDS.xp_reward = 26;
+    }
+
+    ~Slime() override = default;
+};
+
+class Mutant_Pig : public Monster
+{
+    public:
+
+    int Combat_AI(Player& target) override {
+
+        if (ACTION == 0) {
+            ACTION = 5;
+        }
+        else {
+            if (static_cast<float>(HP.current)/HP.max >= 0.6) {
+                ACTION = choose(1,3);
+            }
+            else {
+                ACTION = choose(1,4);
+            }
+        }
+        return ACTION;
+    }
+    void Main_Atk(Player& target) override {
+        int damage = max(ATTACK.current-target.DEFENSE.current,1);
+        target.HP.current -= damage;
+
+        cout << NAME << " avançou contra você e lhe mordeu, causando " << damage << " de dano!";
+    }
+    void Secondary_Atk(Player& target) override {
+        int damage = max((ATTACK.current/2)-target.DEFENSE.current,1);
+        target.HP.current -= damage;
+        target.effects.push_back(new Acid(2,1,1));
+
+        cout << NAME << " cuspiu ácido em você, causando " << damage << " de dano e aplicando ÁCIDO!";
+    }
+    void Block(Player& target) override {
+        DEFENSE.current++;
+
+        cout << NAME << " se protegeu... Sua defesa aumentou em 1";
+    }
+    void Rest(Player& target) override {
+        HP.current += REGEN.current*2;
+
+        cout << NAME << " descançou um pouco, recuperando " << REGEN.current*2 << " de vida...";
+    }
+    void Special1(Player& target) override {
+        target.effects.push_back(new Muddy(3,1,1));
+
+        cout << NAME << " jogou lama na sua cara!";
+    }
+    void Special2(Player& target) override {
+
+    }
+
+    //Setting Up
+    Mutant_Pig()
+    {
+        //HP
+        HP.base = 28;
         HP.bonus = 0;
         HP.max = HP.base + HP.bonus;
         HP.current = HP.max;
-        REGEN.base = 2;
+        REGEN.base = 0;
         REGEN.current = REGEN.base;
 
         //DEFENSE
-        DEFENSE.base = 6;
+        DEFENSE.base = 4;
         DEFENSE.current = DEFENSE.base;
-        DMG_REDUCTION.base = 2;
+        DMG_REDUCTION.base = 0;
         DMG_REDUCTION.current = DMG_REDUCTION.base;
         PHS_DEF.base = 0;
         PHS_DEF.current = PHS_DEF.base;
@@ -334,29 +651,29 @@ public:
         MGC_DEF.current = MGC_DEF.base;
 
         //ATTACK
-        ATTACK.base = 4;
+        ATTACK.base = 5;
         ATTACK.current = ATTACK.base;
-        MAGIC.base = 2;
+        MAGIC.base = 1;
         MAGIC.current = MAGIC.base;
         PENETRATION.base = 0;
         PENETRATION.current = PENETRATION.base;
 
         //SPEED
-        SPEED.base = 5;
+        SPEED.base = 3;
         SPEED.current = SPEED.base;
-        ACCURACY.base = 8;
+        ACCURACY.base = 6;
         ACCURACY.current = ACCURACY.base;
-        EVASIVENESS.base = 5;
+        EVASIVENESS.base = 2;
         EVASIVENESS.current = EVASIVENESS.base;
 
         //OTHER
-        NAME = "Slime";
+        NAME = "Mutant pig";
         LEVEL = 1;
-        REWARDS.gold = 8;
-        REWARDS.xp_reward = 26;
+        REWARDS.gold = 9;
+        REWARDS.xp_reward = 29;
     }
 
-    ~Slime() override = default;
+    ~Mutant_Pig() override = default;
 };
 
 using MonsterFactory = function<unique_ptr<Monster>()>;
@@ -373,12 +690,17 @@ unique_ptr<Monster> Spawn_Enemy(const Spawn_Table& spawn_table)
     return spawn_table.ENEMIES[index]();
 }
 
+//Loot Tables
+
+//Spawn Tables
+
 Spawn_Table Forest =
 {
     "Forest",
     {
         []() { return make_unique<Goblin>(); },
-        []() { return make_unique<Slime>(); }
+        []() { return make_unique<Slime>(); },
+        []() { return make_unique<Mutant_Pig>(); }
     }
 };
 
@@ -390,186 +712,28 @@ Spawn_Table Desert =
     }
 };
 
-//Effects Data Base
-
-class Poison : public Effect
-{
-public:
-
-    int DAMAGE;
-    int INCREMENT;
-    int MAX_DAMAGE;
-    int DEBUFF;
-
-    Poison(int duration, int damage, int increment, int debuff){
-        NAME = "Poison";
-
-        DURATION = duration;
-        DAMAGE = damage;
-        MAX_DAMAGE = DAMAGE*5;
-        INCREMENT = increment;
-        DEBUFF = debuff;
-    }
-
-    void Apply(Entity& target) override
-    {
-        target.REGEN.current -= DEBUFF;
-        target.HP.current -= DAMAGE;
-        cout << target.NAME << " levou " << DAMAGE << " De dano por envenenamento...\t";
-        if (DAMAGE < MAX_DAMAGE)
-        {
-            DAMAGE = clamp(DAMAGE + INCREMENT,1,MAX_DAMAGE);
-            cout << "O veneno piorou!";
-        }
-        cout << endl;
-
-        DURATION--;
-    }
-
-    ~Poison() override = default;
-};
-
-class Burn : public Effect
-{
-public:
-
-    int DAMAGE;
-
-    Burn(int duration, int damage){
-        NAME = "Burn";
-
-        DURATION = duration;
-        DAMAGE = damage;
-    }
-
-    void Apply(Entity& target) override
-    {
-        int damage = clamp(DAMAGE - target.DEFENSE.current,1,DAMAGE);
-        target.HP.current -= damage;
-        cout << target.NAME << " levou " << damage << " De dano por queimadura...\t";
-        if (target.DEFENSE.current > 0)
-        {
-            target.DEFENSE.current = max(target.DEFENSE.current - damage,0);
-
-            cout << "Suas defesas queimaram!";
-        }
-        cout << endl;
-
-        DURATION--;
-    }
-
-    ~Burn() override = default;
-};
-
-class Freeze : public Effect
-{
-public:
-
-    int DAMAGE;
-    int DEBUFF;
-
-    Freeze(int duration, int debuff){
-        NAME = "Freeze";
-
-        DURATION = duration;
-        DEBUFF = debuff;
-    }
-
-    void Apply(Entity& target) override
-    {
-        target.SPEED.current -= DEBUFF;
-        cout << target.NAME << " está congelando...\t";
-        cout << endl;
-
-        DURATION--;
-    }
-
-    ~Freeze() override = default;
-};
-
-//Material Data Base
-
 // Weapon Data Base
 
 class Weapon {
 
 };
 
-// Player Data
-
-class Player : public Entity
-{
-public:
-
-    //OTHER
-    string NAME = "Paulinho Gameplay";
-    XP_Sys LEVEL{};
-	Complex_Attribute ENERGY{};
-
-    enum ACT{MAIN_ATTACK=1,SECONDARY_ATTACK=2,PROTECT=3,REST=4,ANALISE=5,USE_ITEM=6,RUN=7,SKIP=8,INTERRUPT=9,OTHER=10};
-    ACT ACTION = SKIP;
-
-    //Setting Up
-    Player()
-    {
-        //HP
-        HP.base = 20;
-        HP.bonus = 0;
-        HP.max = HP.base + HP.bonus;
-        HP.current = HP.max;
-        REGEN.base = 0;
-        REGEN.current = REGEN.base;
-
-        //DEFENSE
-        DEFENSE.base = 5;
-        DEFENSE.current = DEFENSE.base;
-        DMG_REDUCTION.base = 0;
-        DMG_REDUCTION.current = DMG_REDUCTION.base;
-        PHS_DEF.base = 0;
-        PHS_DEF.current = PHS_DEF.base;
-        MGC_DEF.base = 0;
-        MGC_DEF.current = MGC_DEF.base;
-
-        //ATTACK
-        ATTACK.base = 5;
-        ATTACK.current = ATTACK.base;
-        MAGIC.base = 5;
-        MAGIC.current = MAGIC.base;
-        PENETRATION.base = 0;
-        PENETRATION.current = PENETRATION.base;
-
-        //SPEED
-        SPEED.base = 10;
-        SPEED.current = SPEED.base;
-        ACCURACY.base = 10;
-        ACCURACY.current = ACCURACY.base;
-        EVASIVENESS.base = 10;
-        EVASIVENESS.current = EVASIVENESS.base;
-
-        //OTHER
-        NAME = "Paulinho Gameplay";
-        LEVEL.level = 1;
-        LEVEL.xp = 0;
-        LEVEL.nl_xp = 30;
-        ENERGY.base = 40;
-        ENERGY.bonus = 0;
-        ENERGY.max = ENERGY.base + ENERGY.bonus;
-        ENERGY.current = ENERGY.max;
-
-    }
-
-    ~Player() override = default;
-};
+//Entity's Func
 
 void entity_view(Monster& target)
 {
-    cout << "----- " << target.NAME << " LV " << target.LEVEL << " -----\n" << endl << endl;
+    cout << "-----  " << target.NAME << " LV " << target.LEVEL << "  -----\n" << endl << endl;
     cout << "HP: " << target.HP.current << "/" << target.HP.max << endl;
 
     line_breaker(1,20,'-');
 
     for (int i = 0; i < target.effects.size(); i++) {
         cout << target.effects[i]->NAME << "  -  " << target.effects[i]->DURATION << " Turnos" << endl;
+
+    if (target.effects.size() > 0)
+    {
+    	line_breaker(1,20,'-');
+    }
     }
 }
 
@@ -588,7 +752,7 @@ void entity_check(Monster& target)
 
 void player_check(Player& player)
 {
-    cout << "----- " << player.NAME << " LV " << player.LEVEL.level << " -----\n" << endl << endl;
+    cout << "-----  " << player.NAME << " LV " << player.LEVEL.level << "  -----\n" << endl << endl;
     cout << "HP: " << player.HP.current << "/" << player.HP.max << "\t";
 
     cout << "ENERGY: " << player.ENERGY.current << "/" << player.ENERGY.max << endl;
@@ -599,6 +763,11 @@ void player_check(Player& player)
 
     for (int i = 0; i < player.effects.size(); i++) {
         cout << player.effects[i]->NAME << "  -  " << player.effects[i]->DURATION << " Turnos" << endl;
+
+    if (player.effects.size() > 0)
+    {
+    	line_breaker(1,20,'-');
+    }
     }
 }
 
@@ -614,6 +783,8 @@ void combat(Player& player, Monster& enemy)
     } else
     {
      	turn = ENEMY_TURN;
+        enemy.ACTION = enemy.Combat_AI(player);
+
     }
 
     int choice;
@@ -690,30 +861,29 @@ void combat(Player& player, Monster& enemy)
                     turn = ENEMY_TURN;
                     break;
                 default:
-                    cout << "Erro, digite um número referente a uma ação válido..." << endl << endl;
+                    cout << "Erro, digite um número referente a uma ação válida..." << endl << endl;
             }
             sleep(3);
         } while (turn == PLAYER_TURN);
 
         switch (enemy.ACTION) {
             case 1:
-                cout << enemy.NAME << " acertou um golpe!" << endl;
+                enemy.Main_Atk(player);
                 break;
             case 2:
-                player.effects.push_back(new Burn(2,8));
-                cout << enemy.NAME << " te colocou em chamas!" << endl;
+                enemy.Secondary_Atk(player);
                 break;
             case 3:
-                cout << enemy.NAME << " se protegeu" << endl;
+                enemy.Block(player);
                 break;
             case 4:
-                cout << enemy.NAME << " descansou" << endl;
+                enemy.Rest(player);
                 break;
             case 5:
-                cout << enemy.NAME << " fez algo interessante" << endl;
+                enemy.Special1(player);
                 break;
             case 6:
-                cout << enemy.NAME << " fez algo nem tão interessante" << endl;
+                enemy.Special2(player);
                 break;
             default:
                 cout << enemy.NAME << " não moveu um músculo..." << endl;
